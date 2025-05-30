@@ -1,0 +1,55 @@
+#####################################################################
+#----------------------------- GMAIL -------------------------------#
+#####################################################################
+
+# Crear cuenta de servicio svc-cloud-build@mle-template-project.iam.gserviceaccount.com:
+
+ROLES:
+Cloud Run Admin
+Storage Admin
+Artifact Registry Reader
+Administrador Objetos Storage
+Vertex AI User
+
+# Confirmar permisos
+
+# CLOUD SHELL
+gcloud services enable \
+  aiplatform.googleapis.com \
+  artifactregistry.googleapis.com \
+  run.googleapis.com \
+  cloudbuild.googleapis.com
+
+#####################################################################
+#----------------------------- UNAL --------------------------------#
+#####################################################################
+
+# CLOUD SHELL
+step1: gcloud auth login
+step2: gcloud config set account ycaperam@unal.edu.co
+step3: gcloud config set project mle-template-project-460721
+step4: gcloud artifacts repositories add-iam-policy-binding repo-mle-template \
+  --location=us-east4 \
+  --member="serviceAccount:service-286058926532@gcp-sa-aiplatform-cc.iam.gserviceaccount.com" \
+  --role="roles/artifactregistry.reader" \
+  --project=mle-template-project-460721
+
+# ROLES IAM AND Administrador
+286058926532-compute@developer.gserviceaccount.com
+Administrador de Artifact Registry
+Administrador de Cloud Run
+Editor
+Lector de Artifact Registry
+Usuario de cuenta de servicio
+
+
+# ROLES VERTEXAI
+service-286058926532@gcp-sa-aiplatform-cc.iam.gserviceaccount.com
+Administrador de Artifact Registry
+Agente de servicio del código personalizado de Vertex AI
+Lector de Artifact Registry
+Usuario de Vertex AI
+
+# Validar Artifact y VertexAI (Habilitar)
+
+# Ejecución 1
