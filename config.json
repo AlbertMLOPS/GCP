@@ -1,16 +1,16 @@
 {
-    "PIPELINE_PROJECT_ID"          : "mle-template-project-460721",
+    "PIPELINE_PROJECT_ID"          : "bdb-gcp-qa-cds-idt",
     "PIPELINE_REGION"              : "us-east4",
     "PIPELINE_METADATA"            : {"key":"mlops",
                                       "value":"mle-template"},
     "PIPELINE_CRON"                : "TZ=America/Lima 30 11 3 * *",
-    "PIPELINE_NAME_BUCKET"         : "my-bucket-yacm",
+    "PIPELINE_NAME_BUCKET"         : "bdb-gcp-qa-cds-idt-yacm",
     "PIPELINE_PATH_BUCKET"         : "mlops-test",
     "PIPELINE_MODEL_NAMES"         : "iris-model",
     "PIPELINE_MODEL_DESCRIPTION"   : "Modelo plantilla MLOps",
-    "PIPELINE_ALERT_MAILS"         : ["ycaperam@unal.edu.co"],
+    "PIPELINE_ALERT_MAILS"         : ["ycaper3@bancodebogota.com.co"],
     
-    "OUTPUT_PROJECT_ID"            : "mle-template-project-460721",
+    "OUTPUT_PROJECT_ID"            : "bdb-gcp-qa-cds-idt",
     "OUTPUT_DATASET_ID"            : "MlopsTemplate",
     "OUTPUT_TABLE_ID"              : "Predictions",
     
