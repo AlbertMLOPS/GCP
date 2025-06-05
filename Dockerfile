@@ -28,22 +28,14 @@
 
 FROM gcr.io/google.com/cloudsdktool/google-cloud-cli:455.0.0-slim
 
-# Allow statements and log messages to immediately appear in the Knative logs
 ENV PYTHONUNBUFFERED True
 
-# Copy local code to the container image.
 WORKDIR /app
 COPY . .
 
-# 🔍 VERIFICACIÓN: Mostrar qué archivos se copiaron
-RUN echo "🟢 CONTENIDO DE /app:" && ls -l /app && echo "🟢 CONTENIDO DE /app/pipeline:" && ls -l /app/pipeline
-
-# Install production dependencies.
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
-# Service must listen to $PORT environment variable.
 ENV PORT 8080
 
-# Run the web service on container startup.
-CMD exec gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 0 app:app
+CMD ["python", "app.py"]
