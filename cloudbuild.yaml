@@ -51,6 +51,19 @@ steps:
       - '--no-allow-unauthenticated'  
       - '--ingress=internal'        
 
+  # Step 3.5: Deploy the image to Google Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'services'
+      - 'add-iam-policy-binding'
+      - '$_CLOUD_RUN_SERVICE'
+      - '--region=$_REGION'
+      - '--member=allUsers'
+      - '--role=roles/run.invoker'
+
+
   # Step 4: Add delay before checking status
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'sh'
