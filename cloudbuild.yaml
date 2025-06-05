@@ -37,18 +37,6 @@ steps:
       - '--allow-unauthenticated'
       - '--memory=2Gi'
 
-  # Step 3.5: Otorgar permisos públicos al servicio de Cloud Run
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: 'gcloud'
-    args:
-      - 'run'
-      - 'services'
-      - 'add-iam-policy-binding'
-      - '$_CLOUD_RUN_SERVICE'
-      - '--region=$_REGION'
-      - '--member=allUsers'
-      - '--role=roles/run.invoker'
-
   # Step 4: Add delay before checking status
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'sh'
