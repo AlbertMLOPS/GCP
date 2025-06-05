@@ -25,6 +25,19 @@ steps:
     args: ['push', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPOSITORY_NAME/$_IMAGE_NAME:latest']
 
   # Step 3: Deploy the image to Google Cloud Run
+  #- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  #  entrypoint: 'gcloud'
+  #  args:
+  #    - 'run'
+  #    - 'deploy'
+  #    - '$_CLOUD_RUN_SERVICE'
+  #    - '--image=$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPOSITORY_NAME/$_IMAGE_NAME:latest'
+  #    - '--region=$_REGION'
+  #    - '--platform=managed'
+  #    - '--allow-unauthenticated'
+  #    - '--memory=2Gi'
+  
+  # Step 3: Deploy the image to Google Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
     args:
@@ -34,8 +47,9 @@ steps:
       - '--image=$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPOSITORY_NAME/$_IMAGE_NAME:latest'
       - '--region=$_REGION'
       - '--platform=managed'
-      - '--allow-unauthenticated'
       - '--memory=2Gi'
+      - '--no-allow-unauthenticated'  
+      - '--ingress=internal'        
 
   # Step 4: Add delay before checking status
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
