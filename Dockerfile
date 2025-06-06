@@ -1,40 +1,40 @@
-#FROM gcr.io/google.com/cloudsdktool/google-cloud-cli:455.0.0-slim
+FROM gcr.io/google.com/cloudsdktool/google-cloud-cli:455.0.0-slim
 
-## Allow statements and log messages to immediately appear in the Knative logs
-#ENV PYTHONUNBUFFERED True
+# Allow statements and log messages to immediately appear in the Knative logs
+ENV PYTHONUNBUFFERED True
 
-## Copy local code to the container image.
-#WORKDIR /app
-#COPY . .
+# Copy local code to the container image.
+WORKDIR /app
+COPY . .
 
-## Install production dependencies.
-#RUN pip install --upgrade pip
+# Install production dependencies.
+RUN pip install --upgrade pip
 
-## Install production dependencies.
-#RUN pip install -r requirements.txt
+# Install production dependencies.
+RUN pip install -r requirements.txt
 
-## Service must listen to $PORT environment variable.
-## This default value facilitates local development.
-#ENV PORT 8080
+# Service must listen to $PORT environment variable.
+# This default value facilitates local development.
+ENV PORT 8080
 
-## Run the web service on container startup. Here we use the gunicorn
-## webserver, with one worker process and 8 threads.
-## For environments with multiple CPU cores, increase the number of workers
-## to be equal to the cores available.
-#CMD exec gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 0 app:app
+# Run the web service on container startup. Here we use the gunicorn
+# webserver, with one worker process and 8 threads.
+# For environments with multiple CPU cores, increase the number of workers
+# to be equal to the cores available.
+CMD exec gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 0 app:app
 
 
 ############################################################
 
-FROM python:3.10-slim
+#FROM python:3.10-slim
 
-WORKDIR /app
+#WORKDIR /app
 
-COPY . .
+#COPY . .
 
-# ← Instalar compiladores para pyfarmhash
-RUN apt-get update && apt-get install -y gcc g++ build-essential
+## ← Instalar compiladores para pyfarmhash
+#RUN apt-get update && apt-get install -y gcc g++ build-essential
 
-RUN pip install --no-cache-dir -r requirements.txt
+#RUN pip install --no-cache-dir -r requirements.txt
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:app"]
+#CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:app"]

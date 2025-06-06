@@ -5,12 +5,22 @@ app = Flask(__name__)
 def main():
     return 'Modelo de ejemplo MLOps'
 
+#@app.route("/train_pipeline")
+#def train_pipeline():
+#    from pipeline.train_pipeline import compile_pipeline, run_pipeline
+#    compile_pipeline()
+#    run_pipeline()
+#    return 'Ejecución Correcta!'
+
 @app.route("/train_pipeline")
 def train_pipeline():
-    from pipeline.train_pipeline import compile_pipeline, run_pipeline
-    compile_pipeline()
-    run_pipeline()
-    return 'Ejecución Correcta!'
+    try:
+        from pipeline.train_pipeline import compile_pipeline, run_pipeline
+        compile_pipeline()
+        run_pipeline()
+        return 'Ejecución Correcta!'
+    except Exception as e:
+        return f"Error en /train_pipeline: {str(e)}", 500
 
 @app.route("/predict_pipeline")
 def predict_pipeline():
