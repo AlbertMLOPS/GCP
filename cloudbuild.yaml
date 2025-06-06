@@ -66,7 +66,7 @@ steps:
         done
 
         BASE_URL=$(gcloud run services describe $_CLOUD_RUN_SERVICE --region=$_REGION --platform=managed --format='value(status.url)')
-        TOKEN=$(gcloud auth print-identity-token)
+        TOKEN="dummy"
 
         echo "Probando endpoints con token..."
         curl -H "Authorization: Bearer $TOKEN" "$BASE_URL/train_pipeline"
