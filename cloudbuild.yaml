@@ -4,14 +4,7 @@ options:
 steps:
   # Paso 0: Construir imagen
   - name: 'gcr.io/cloud-builders/docker'
-    # args: ['build', '-t', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPOSITORY_NAME/$_IMAGE_NAME:latest', '.']
-    args:
-      - 'build'
-      - '-t'
-      - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPOSITORY_NAME/$_IMAGE_NAME:latest'
-      - '-f'
-      - 'GCP/Dockerfile'
-      - 'GCP'
+    args: ['build', '-t', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPOSITORY_NAME/$_IMAGE_NAME:latest', '.']
 
   # Paso 1: Verificar o crear repositorio
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -62,11 +55,11 @@ steps:
       - |
         echo "Esperando a que el servicio esté estable..."
         while [ "$(gcloud run services describe $_CLOUD_RUN_SERVICE --region=$_REGION --platform=managed --format='value(status.conditions[0].status)')" != "True" ]; do
-          sleep 10
+          sleep 30
         done
 
         BASE_URL=$(gcloud run services describe $_CLOUD_RUN_SERVICE --region=$_REGION --platform=managed --format='value(status.url)')
-        TOKEN="dummy"
+        TOKEN=$(gcloud auth print-identity-token)
 
         echo "Probando endpoints con token..."
         curl -H "Authorization: Bearer $TOKEN" "$BASE_URL/train_pipeline"
