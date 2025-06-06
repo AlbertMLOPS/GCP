@@ -4,7 +4,9 @@ options:
 steps:
   # Paso 0: Construir imagen
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPOSITORY_NAME/$_IMAGE_NAME:latest', '.']
+    # args: ['build', '-t', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPOSITORY_NAME/$_IMAGE_NAME:latest', '.']
+    args: ['build', '-t', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPOSITORY_NAME/$_IMAGE_NAME:latest', '-f', 'GCP/Dockerfile', 'GCP']
+
 
   # Paso 1: Verificar o crear repositorio
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
