@@ -1,11 +1,11 @@
 options:
   logging: CLOUD_LOGGING_ONLY
-
+ 
 steps:
   # Step 0: Build the Docker image from the Dockerfile
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPOSITORY_NAME/$_IMAGE_NAME:latest', '.']
-
+ 
   # Step 1: Check if the Artifact Repository exists and create it if not
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'sh'
@@ -19,24 +19,11 @@ steps:
         else
           echo "Repository $_REPOSITORY_NAME already exists."
         fi
-
+ 
   # Step 2: Push the image to Google Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPOSITORY_NAME/$_IMAGE_NAME:latest']
-
-  # Step 3: Deploy the image to Google Cloud Run
-  #- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-  #  entrypoint: 'gcloud'
-  #  args:
-  #    - 'run'
-  #    - 'deploy'
-  #    - '$_CLOUD_RUN_SERVICE'
-  #    - '--image=$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPOSITORY_NAME/$_IMAGE_NAME:latest'
-  #    - '--region=$_REGION'
-  #    - '--platform=managed'
-  #    - '--allow-unauthenticated'
-  #    - '--memory=2Gi'
-  
+ 
   # Step 3: Deploy the image to Google Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
@@ -48,46 +35,73 @@ steps:
       - '--region=$_REGION'
       - '--platform=managed'
       - '--memory=2Gi'
-      - '--no-allow-unauthenticated'  
-      - '--ingress=internal'        
-
-  # Step 3.5: Deploy the image to Google Cloud Run
+      - '--no-allow-unauthenticated'
+      - '--ingress=internal'
+      # IMPORTANTE: El paso de 'add-iam-policy-binding' con allUsers no tiene sentido con --no-allow-unauthenticated
+      # Si el servicio es interno y no autenticado, solo será accesible desde la VPC.
+      # Si es no autenticado pero no interno, entonces sí tendría sentido para acceso público.
+      # Con --no-allow-unauthenticated, se requiere autenticación SIEMPRE.
+      # Eliminar el siguiente paso si deseas que solo sea accesible por la red interna y autenticación.
+      # Si necesitas que sea invocado por todos los usuarios PERO autenticados, este paso puede causar confusión.
+      # Para servicios internos, los invocadores deben tener roles específicos y usar autenticación de cuenta de servicio.
+ 
+# ELIMINAR ESTOS PASOS:
+#   # Step 3.5: Otorgar permisos públicos al servicio de Cloud Run (ya no tiene sentido con --no-allow-unauthenticated e --ingress=internal)
+#   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+#     entrypoint: 'gcloud'
+#     args:
+#       - 'run'
+#       - 'services'
+#       - 'add-iam-policy-binding'
+#       - '$_CLOUD_RUN_SERVICE'
+#       - '--region=$_REGION'
+#       - '--member=allUsers' # Esto contradice --no-allow-unauthenticated
+#       - '--role=roles/run.invoker'
+ 
+# ELIMINAR ESTOS PASOS:
+#   # Step 4: Add delay before checking status
+#   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+#     entrypoint: 'sh'
+#     args:
+#       - '-c'
+#       - |
+#         echo "Adding delay before checking service status..."
+#         sleep 30  # Delay for 60 seconds before starting status check
+ 
+# ELIMINAR ESTOS PASOS:
+#   # Step 5: Check status and use the URL of the deployed Cloud Run service
+#   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+#     entrypoint: 'sh'
+#     args:
+#       - '-c'
+#       - |
+#         set -e
+#         while [ "$(gcloud run services describe mle-template-service --region=us-east4 --platform=managed --format='value(status.conditions[0].status)')" != "True" ]; do
+#           echo "Waiting for service to become stable..."
+#           sleep 10
+#         done
+#         echo "Service is stable"
+#         curl "$(gcloud run services describe mle-template-service --region=us-east4 --platform=managed --format='value(status.url)')/train_pipeline"
+#         curl "$(gcloud run services describe mle-template-service --region=us-east4 --platform=managed --format='value(status.url)')/predict_pipeline"
+ 
+# Este es el nuevo paso para invocar el pipeline de Vertex AI DIRECTAMENTE desde Cloud Build
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: 'gcloud'
-    args:
-      - 'run'
-      - 'services'
-      - 'add-iam-policy-binding'
-      - '$_CLOUD_RUN_SERVICE'
-      - '--region=$_REGION'
-      - '--member=allUsers'
-      - '--role=roles/run.invoker'
-
-
-  # Step 4: Add delay before checking status
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: 'sh'
+    entrypoint: 'bash'
     args:
       - '-c'
       - |
-        echo "Adding delay before checking service status..."
-        sleep 30  # Delay for 60 seconds before starting status check
-
-  # Step 5: Check status and use the URL of the deployed Cloud Run service
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: 'sh'
-    args:
-      - '-c'
-      - |
-        set -e  
-        while [ "$(gcloud run services describe mle-template-service --region=us-east4 --platform=managed --format='value(status.conditions[0].status)')" != "True" ]; do 
-          echo "Waiting for service to become stable..."
-          sleep 10
-        done 
-        echo "Service is stable" 
-        curl "$(gcloud run services describe mle-template-service --region=us-east4 --platform=managed --format='value(status.url)')/train_pipeline" 
-        curl "$(gcloud run services describe mle-template-service --region=us-east4 --platform=managed --format='value(status.url)')/predict_pipeline"
-
+        # Configurar la autenticación para Vertex AI
+        gcloud auth activate-service-account --key-file=/workspace/service-account-key.json # Debes tener una clave de SA aquí o usar la SA predeterminada de CB
+        gcloud config set project $PROJECT_ID
+        gcloud config set compute/region $_REGION
+ 
+        # Instalar dependencias necesarias para ejecutar el script Python
+        pip install -r requirements.txt # Asegúrate de que kfp, google-cloud-aiplatform, etc. estén en requirements.txt
+        # Ejecutar el script Python que compila y corre el pipeline de Vertex AI
+        # Asegúrate de que tu script Python pueda encontrar 'config.json' y otros módulos
+        # Por ejemplo, si run_pipeline está en pipeline/train_pipeline.py
+        python -c "from pipeline.train_pipeline import compile_pipeline, run_pipeline; compile_pipeline(); run_pipeline()"
+ 
 substitutions:
   _PROJECT_ID: 'bdb-gcp-qa-cds-idt'
   _REGION: 'us-east4'
