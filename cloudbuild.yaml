@@ -2,31 +2,31 @@ options:
   logging: CLOUD_LOGGING_ONLY
  
 steps:
-  # Step 0: Build the Docker image from the Dockerfile
+  # Paso 0: Construir la imagen Docker desde el Dockerfile
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPOSITORY_NAME/$_IMAGE_NAME:latest', '.']
  
-  # Step 1: Check if the Artifact Repository exists and create it if not
+  # Paso 1: Verificar si el repositorio de Artifact Registry existe y crearlo si no
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: 'sh'
+    entrypoint: 'sh' # Este paso usa la shell para comandos gcloud/bash
     args:
       - '-c'
       - |
         if ! gcloud artifacts repositories describe $_REPOSITORY_NAME --location=$_REGION --format='value(name)'; then
-          echo "Repository $_REPOSITORY_NAME does not exist. Creating repository..."
+          echo "El repositorio $_REPOSITORY_NAME no existe. Creando repositorio..."
           gcloud artifacts repositories create $_REPOSITORY_NAME --repository-format=docker --location=$_REGION
-          echo "Repository $_REPOSITORY_NAME created."
+          echo "Repositorio $_REPOSITORY_NAME creado."
         else
-          echo "Repository $_REPOSITORY_NAME already exists."
+          echo "El repositorio $_REPOSITORY_NAME ya existe."
         fi
  
-  # Step 2: Push the image to Google Artifact Registry
+  # Paso 2: Subir la imagen a Google Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPOSITORY_NAME/$_IMAGE_NAME:latest']
  
-  # Step 3: Deploy the image to Google Cloud Run
+  # Paso 3: Desplegar la imagen en Google Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: 'gcloud'
+    entrypoint: 'gcloud' # Este paso usa el comando gcloud directamente
     args:
       - 'run'
       - 'deploy'
@@ -37,39 +37,31 @@ steps:
       - '--memory=2Gi'
       - '--no-allow-unauthenticated'
       - '--ingress=internal'
-      # IMPORTANTE: El paso de 'add-iam-policy-binding' con allUsers no tiene sentido con --no-allow-unauthenticated
-      # Si el servicio es interno y no autenticado, solo será accesible desde la VPC.
-      # Si es no autenticado pero no interno, entonces sí tendría sentido para acceso público.
-      # Con --no-allow-unauthenticated, se requiere autenticación SIEMPRE.
-      # Eliminar el siguiente paso si deseas que solo sea accesible por la red interna y autenticación.
-      # Si necesitas que sea invocado por todos los usuarios PERO autenticados, este paso puede causar confusión.
-      # Para servicios internos, los invocadores deben tener roles específicos y usar autenticación de cuenta de servicio.
+      # NOTA IMPORTANTE: Si el servicio Cloud Run es interno y sin autenticación (como aquí),
+      # la sección de "add-iam-policy-binding" con 'allUsers' ya no es necesaria ni tiene sentido,
+      # ya que el servicio solo será accesible desde la VPC.
+      # Se han eliminado los comentarios anteriores para mantener el YAML más limpio.
  
-  # ELIMINADO: Step 3.5: Otorgar permisos públicos al servicio de Cloud Run
-  # ELIMINADO: Step 4: Add delay before checking status
-  # ELIMINADO: Step 5: Check status and use the URL of the deployed Cloud Run service
- 
-  # Este es el nuevo paso para invocar el pipeline de Vertex AI DIRECTAMENTE desde Cloud Build
+  # Este es el paso clave para invocar el pipeline de Vertex AI DIRECTAMENTE desde Cloud Build
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: 'python3' # CAMBIO: Ejecutar directamente con python3
+    entrypoint: 'python3' # CAMBIO CRÍTICO: Ejecutar directamente con el intérprete de Python 3
     args:
       - '-c'
       - |
-        # Ya no es necesario activar la cuenta de servicio con un archivo JSON
-        # porque la cuenta de servicio del trigger de Cloud Build ya está autenticada.
-        # gcloud auth activate-service-account --key-file=/workspace/service-account-key.json # ELIMINADO
-        gcloud config set project $PROJECT_ID
-        gcloud config set compute/region $_REGION
+        # Las configuraciones de proyecto y región para gcloud CLI
+        # son establecidas automáticamente por Cloud Build en este entorno.
+        # Por lo tanto, las siguientes líneas NO SON NECESARIAS aquí
+        # y causaban el error de sintaxis en Python.
+        # gcloud config set project $PROJECT_ID # ELIMINADO
+        # gcloud config set compute/region $_REGION # ELIMINADO
  
-        # Las dependencias de los componentes de Kubeflow/Vertex AI se instalan
-        # dentro de las imágenes de los propios componentes. No es necesario
-        # instalar requirements.txt en este paso del Cloud Build.
-        # pip install -r requirements.txt # ELIMINADO
-        # Ejecutar el script Python que compila y corre el pipeline de Vertex AI
-        # Asegúrate de que tu script Python pueda encontrar 'config.json' y otros módulos
-        # Por ejemplo, si run_pipeline está en pipeline/train_pipeline.py
-        # El comando 'python' por sí solo puede apuntar a python2 en algunas imágenes,
-        # 'python3' asegura la versión correcta.
+        # Tampoco es necesario 'pip install -r requirements.txt' aquí,
+        # ya que las dependencias de los componentes del pipeline de Vertex AI
+        # se instalan dentro de las imágenes de Docker de esos componentes (tu BASE_IMAGE).
+        # Este paso solo necesita el ambiente de Python para ejecutar las funciones.
+        # Ejecutar el script Python que compila y lanza el pipeline de Vertex AI
+        # Asegúrate de que tus archivos 'config.json', 'pipeline/train_pipeline.py'
+        # y 'pipeline/prod_modules' estén disponibles en el directorio de trabajo de Cloud Build.
         from pipeline.train_pipeline import compile_pipeline, run_pipeline
         compile_pipeline()
         run_pipeline()
