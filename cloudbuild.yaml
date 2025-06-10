@@ -45,62 +45,34 @@ steps:
       # Si necesitas que sea invocado por todos los usuarios PERO autenticados, este paso puede causar confusión.
       # Para servicios internos, los invocadores deben tener roles específicos y usar autenticación de cuenta de servicio.
  
-# ELIMINAR ESTOS PASOS:
-#   # Step 3.5: Otorgar permisos públicos al servicio de Cloud Run (ya no tiene sentido con --no-allow-unauthenticated e --ingress=internal)
-#   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-#     entrypoint: 'gcloud'
-#     args:
-#       - 'run'
-#       - 'services'
-#       - 'add-iam-policy-binding'
-#       - '$_CLOUD_RUN_SERVICE'
-#       - '--region=$_REGION'
-#       - '--member=allUsers' # Esto contradice --no-allow-unauthenticated
-#       - '--role=roles/run.invoker'
+  # ELIMINADO: Step 3.5: Otorgar permisos públicos al servicio de Cloud Run
+  # ELIMINADO: Step 4: Add delay before checking status
+  # ELIMINADO: Step 5: Check status and use the URL of the deployed Cloud Run service
  
-# ELIMINAR ESTOS PASOS:
-#   # Step 4: Add delay before checking status
-#   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-#     entrypoint: 'sh'
-#     args:
-#       - '-c'
-#       - |
-#         echo "Adding delay before checking service status..."
-#         sleep 30  # Delay for 60 seconds before starting status check
- 
-# ELIMINAR ESTOS PASOS:
-#   # Step 5: Check status and use the URL of the deployed Cloud Run service
-#   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-#     entrypoint: 'sh'
-#     args:
-#       - '-c'
-#       - |
-#         set -e
-#         while [ "$(gcloud run services describe mle-template-service --region=us-east4 --platform=managed --format='value(status.conditions[0].status)')" != "True" ]; do
-#           echo "Waiting for service to become stable..."
-#           sleep 10
-#         done
-#         echo "Service is stable"
-#         curl "$(gcloud run services describe mle-template-service --region=us-east4 --platform=managed --format='value(status.url)')/train_pipeline"
-#         curl "$(gcloud run services describe mle-template-service --region=us-east4 --platform=managed --format='value(status.url)')/predict_pipeline"
- 
-# Este es el nuevo paso para invocar el pipeline de Vertex AI DIRECTAMENTE desde Cloud Build
+  # Este es el nuevo paso para invocar el pipeline de Vertex AI DIRECTAMENTE desde Cloud Build
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: 'bash'
+    entrypoint: 'python3' # CAMBIO: Ejecutar directamente con python3
     args:
       - '-c'
       - |
-        # Configurar la autenticación para Vertex AI
-        gcloud auth activate-service-account --key-file=/workspace/service-account-key.json # Debes tener una clave de SA aquí o usar la SA predeterminada de CB
+        # Ya no es necesario activar la cuenta de servicio con un archivo JSON
+        # porque la cuenta de servicio del trigger de Cloud Build ya está autenticada.
+        # gcloud auth activate-service-account --key-file=/workspace/service-account-key.json # ELIMINADO
         gcloud config set project $PROJECT_ID
         gcloud config set compute/region $_REGION
  
-        # Instalar dependencias necesarias para ejecutar el script Python
-        pip install -r requirements.txt # Asegúrate de que kfp, google-cloud-aiplatform, etc. estén en requirements.txt
+        # Las dependencias de los componentes de Kubeflow/Vertex AI se instalan
+        # dentro de las imágenes de los propios componentes. No es necesario
+        # instalar requirements.txt en este paso del Cloud Build.
+        # pip install -r requirements.txt # ELIMINADO
         # Ejecutar el script Python que compila y corre el pipeline de Vertex AI
         # Asegúrate de que tu script Python pueda encontrar 'config.json' y otros módulos
         # Por ejemplo, si run_pipeline está en pipeline/train_pipeline.py
-        python -c "from pipeline.train_pipeline import compile_pipeline, run_pipeline; compile_pipeline(); run_pipeline()"
+        # El comando 'python' por sí solo puede apuntar a python2 en algunas imágenes,
+        # 'python3' asegura la versión correcta.
+        from pipeline.train_pipeline import compile_pipeline, run_pipeline
+        compile_pipeline()
+        run_pipeline()
  
 substitutions:
   _PROJECT_ID: 'bdb-gcp-qa-cds-idt'
