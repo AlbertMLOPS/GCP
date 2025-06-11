@@ -10,7 +10,7 @@ google-cloud-storage==2.14.0
 fsspec==2024.3.1
 gcsfs==2024.3.1
 gspread==6.1.0
-tensorflow-data-validation # Quita la versión y deja que pip la resuelva 
-tensorflow-metadata # Quita la versión 
+tensorflow-data-validation==1.16.1 # Sube a una de las versiones que pip te sugiere 
+tensorflow-metadata==1.16.1 # Sube a una de las versiones que pip te sugiere (o la que sea compatible con TFDV)
 protobuf==3.20.3
-google-cloud-aiplatform # Asegúrate de que esté
+google-cloud-aiplatform
