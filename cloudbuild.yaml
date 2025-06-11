@@ -44,27 +44,26 @@ steps:
  
   # Este es el paso clave para invocar el pipeline de Vertex AI DIRECTAMENTE desde Cloud Build
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: 'python3' # CAMBIO CRÍTICO: Ejecutar directamente con el intérprete de Python 3
+    entrypoint: 'bash' # CAMBIO: Volvemos a 'bash' para poder usar pip y python correctamente
     args:
       - '-c'
       - |
-        # Las configuraciones de proyecto y región para gcloud CLI
-        # son establecidas automáticamente por Cloud Build en este entorno.
-        # Por lo tanto, las siguientes líneas NO SON NECESARIAS aquí
-        # y causaban el error de sintaxis en Python.
-        # gcloud config set project $PROJECT_ID # ELIMINADO
-        # gcloud config set compute/region $_REGION # ELIMINADO
+        # Instalar las dependencias necesarias con pip y el flag --break-system-packages
+        # Este flag es necesario en algunas imágenes de Cloud Build para permitir la instalación
+        # en entornos que Python gestiona externamente, lo que evita el error de "externally-managed-environment".
+        # Asegúrate de que kfp, google-cloud-aiplatform, y cualquier otra librería que use train_pipeline.py
+        # estén en tu archivo requirements.txt.
+        pip install --user --no-warn-script-location --break-system-packages -r requirements.txt
+        # Asegurarse de que el path de los scripts instalados por --user esté en el PATH
+        # Esto es vital para que Python pueda encontrar los módulos una vez instalados.
+        export PATH=$PATH:$(python3 -m site --user-base)/bin
  
-        # Tampoco es necesario 'pip install -r requirements.txt' aquí,
-        # ya que las dependencias de los componentes del pipeline de Vertex AI
-        # se instalan dentro de las imágenes de Docker de esos componentes (tu BASE_IMAGE).
-        # Este paso solo necesita el ambiente de Python para ejecutar las funciones.
-        # Ejecutar el script Python que compila y lanza el pipeline de Vertex AI
-        # Asegúrate de que tus archivos 'config.json', 'pipeline/train_pipeline.py'
-        # y 'pipeline/prod_modules' estén disponibles en el directorio de trabajo de Cloud Build.
-        from pipeline.train_pipeline import compile_pipeline, run_pipeline
-        compile_pipeline()
-        run_pipeline()
+        # Configurar el proyecto y la región para gcloud CLI (aunque Cloud Build ya lo hace, no hace daño reafirmarlo)
+        gcloud config set project $PROJECT_ID
+        gcloud config set compute/region $_REGION
+        # Ejecutar el script Python que compila y corre el pipeline de Vertex AI
+        # Usamos 'python3' explícitamente para asegurar la versión correcta.
+        python3 -c "from pipeline.train_pipeline import compile_pipeline, run_pipeline; compile_pipeline(); run_pipeline()"
  
 substitutions:
   _PROJECT_ID: 'bdb-gcp-qa-cds-idt'
