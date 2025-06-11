@@ -1,5 +1,5 @@
 # Utiliza una imagen base con una versión específica y estable de Python.
-FROM python:3.11-slim-bookworm
+FROM python:3.9-slim-bookworm
  
 # Permitir que los mensajes de log aparezcan inmediatamente en los logs de Knative/Cloud Run
 ENV PYTHONUNBUFFERED True
