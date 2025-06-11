@@ -10,7 +10,5 @@ google-cloud-storage==2.14.0
 fsspec==2024.3.1
 gcsfs==2024.3.1
 gspread==6.1.0
-tensorflow-data-validation==1.16.1 # Sube a una de las versiones que pip te sugiere 
-tensorflow-metadata==1.16.1 # Sube a una de las versiones que pip te sugiere (o la que sea compatible con TFDV)
-protobuf==3.20.3
-google-cloud-aiplatform
+protobuf==3.20.3 # KFP 2.0.1 ES COMPATIBLE CON ESTA VERSIÓN DE PROTOBUF
+google-cloud-aiplatform # Deja que pip resuelva la última compatible

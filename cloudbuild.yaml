@@ -2,108 +2,65 @@ options:
   logging: CLOUD_LOGGING_ONLY
  
 steps:
-
   # Paso 0: Construir la imagen Docker desde el Dockerfile
-
+  # Esta imagen ahora contendrá kfp y todas las dependencias necesarias para compilar/ejecutar el pipeline
   - name: 'gcr.io/cloud-builders/docker'
-
     args: ['build', '-t', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPOSITORY_NAME/$_IMAGE_NAME:latest', '.']
+    id: 'build-docker-image' # Agregamos un ID para referencia explícita
  
   # Paso 1: Verificar si el repositorio de Artifact Registry existe y crearlo si no
-
+  # Este paso usa la imagen de Cloud SDK porque es una operación de gcloud CLI
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-
-    entrypoint: 'sh' # Este paso usa la shell para comandos gcloud/bash
-
+    entrypoint: 'sh'
     args:
-
       - '-c'
-
       - |
-
         if ! gcloud artifacts repositories describe $_REPOSITORY_NAME --location=$_REGION --format='value(name)'; then
-
           echo "El repositorio $_REPOSITORY_NAME no existe. Creando repositorio..."
-
           gcloud artifacts repositories create $_REPOSITORY_NAME --repository-format=docker --location=$_REGION
-
           echo "Repositorio $_REPOSITORY_NAME creado."
-
         else
-
           echo "El repositorio $_REPOSITORY_NAME ya existe."
-
         fi
+    id: 'check-create-repo'
  
   # Paso 2: Subir la imagen a Google Artifact Registry
-
   - name: 'gcr.io/cloud-builders/docker'
-
     args: ['push', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPOSITORY_NAME/$_IMAGE_NAME:latest']
+    id: 'push-docker-image'
  
   # Paso 3: Desplegar la imagen en Google Cloud Run
-
+  # Este paso usa gcloud, no tu imagen custom
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-
-    entrypoint: 'gcloud' # Este paso usa el comando gcloud directamente
-
+    entrypoint: 'gcloud'
     args:
-
       - 'run'
-
       - 'deploy'
-
       - '$_CLOUD_RUN_SERVICE'
-
       - '--image=$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPOSITORY_NAME/$_IMAGE_NAME:latest'
-
       - '--region=$_REGION'
-
       - '--platform=managed'
-
       - '--memory=2Gi'
-
       - '--no-allow-unauthenticated'
-
       - '--ingress=internal'
+    id: 'deploy-cloud-run'
  
-  # Este es el paso clave para invocar el pipeline de Vertex AI DIRECTAMENTE desde Cloud Build
-
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-
-    entrypoint: 'bash' # Mantenemos 'bash' para poder usar pip y export PATH
-
+  # Paso 4: Invocar el pipeline de Vertex AI utilizando TU PROPIA IMAGEN Docker
+  # ESTE ES EL CAMBIO MÁS IMPORTANTE Y LA CLAVE PARA EL ÉXITO.
+  - name: '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPOSITORY_NAME/$_IMAGE_NAME:latest' # <-- ¡Aquí se usa TU imagen construida!
+    entrypoint: 'python3' # Asume que python3 está disponible en tu imagen base (python:3.11-slim-bookworm)
     args:
-
       - '-c'
-
       - |
-
-        # Instalar las dependencias necesarias con pip
-
-        pip install --user --no-warn-script-location --break-system-packages -r requirements.txt
-
-        # Asegurarse de que el path de los scripts instalados por --user esté en el PATH
-
-        # CAMBIO CLAVE AQUÍ: Usamos $$PATH para escapar el $ de Cloud Build
-
-        export PATH=$$PATH:$(python3 -m site --user-base)/bin
- 
-        # Configurar el proyecto y la región para gcloud CLI
-
-        gcloud config set project $PROJECT_ID
-
-        gcloud config set compute/region $_REGION
-
-        # Ejecutar el script Python que compila y corre el pipeline de Vertex AI
-
-        python3 -c "from pipeline.train_pipeline import compile_pipeline, run_pipeline; compile_pipeline(); run_pipeline()"
+        # No se necesitan comandos gcloud config set aquí si aiplatform.init se encarga de la autenticación
+        # Las credenciales de la cuenta de servicio de Cloud Build se propagan automáticamente.
+        echo "Ejecutando el script del pipeline desde la imagen personalizada..."
+        python3 pipeline/train_pipeline.py # Ejecuta directamente el script
+    id: 'run-vertex-pipeline' # Agregamos un ID para claridad
  
 substitutions:
-
   _PROJECT_ID: 'bdb-gcp-qa-cds-idt'
   _REGION: 'us-east4'
   _REPOSITORY_NAME: 'repo-mle-template'
   _IMAGE_NAME: 'mle-template'
   _CLOUD_RUN_SERVICE: 'mle-template-service'
- 
