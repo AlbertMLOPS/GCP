@@ -1,11 +1,13 @@
 # Utiliza una imagen base con una versión específica y estable de Python.
-# Python 3.11 es compatible con la mayoría de las versiones recientes.
 FROM python:3.11-slim-bookworm
+ 
+# Permitir que los mensajes de log aparezcan inmediatamente en los logs de Knative/Cloud Run
+ENV PYTHONUNBUFFERED True
  
 # Establece el directorio de trabajo en el contenedor
 WORKDIR /app
  
-# Copia los archivos de configuración antes de la instalación de dependencias, si se necesitan.
+# Copia los archivos de configuración (si están en la raíz del contexto de build)
 COPY config.json ./
 COPY pipeline/prod_config.json ./pipeline/
  
@@ -13,20 +15,23 @@ COPY pipeline/prod_config.json ./pipeline/
 COPY requirements.txt ./
  
 # Instala las dependencias de Python.
-# Se actualiza pip primero para asegurar una versión reciente que maneje bien las dependencias.
-# Se usa --no-cache-dir para reducir el tamaño de la imagen final.
 RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
  
-# Copia el resto de tu código fuente al directorio de trabajo
+# Copia el resto de tu código fuente al directorio de trabajo.
+# Esto incluye tu app.py y el directorio pipeline/
 COPY . .
  
-# Opcional: Define una variable de entorno para el PATH si tus scripts la necesitan
-# ENV PATH="/usr/local/bin:${PATH}"
+# Expone el puerto que usará Gunicorn/Flask
+EXPOSE 8080
  
-# Opcional: Si tu aplicación Cloud Run va a ejecutar Flask/Gunicorn al iniciar,
-# puedes definir un CMD o ENTRYPOINT aquí. Si solo es para ejecutar el pipeline vía Cloud Build, no es estrictamente necesario.
-# CMD ["gunicorn", "--bind", "0.0.0.0:8080", "main:app"] # Ejemplo si tu app es una API Flask
+# Define la variable de entorno PORT para Cloud Run
+ENV PORT 8080
+ 
+# Comando para ejecutar la aplicación Flask/Gunicorn al iniciar el contenedor.
+# Cloud Run usará este CMD por defecto.
+# Apunta a tu archivo 'app.py' y a la instancia de Flask 'app' dentro de él.
+CMD exec gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 0 app:app
 
 #########################################################
 ####################### OPCION 2 ########################

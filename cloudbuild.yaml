@@ -3,13 +3,11 @@ options:
  
 steps:
   # Paso 0: Construir la imagen Docker desde el Dockerfile
-  # Esta imagen ahora contendrá kfp y todas las dependencias necesarias para compilar/ejecutar el pipeline
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPOSITORY_NAME/$_IMAGE_NAME:latest', '.']
-    id: 'build-docker-image' # Agregamos un ID para referencia explícita
+    id: 'build-docker-image'
  
   # Paso 1: Verificar si el repositorio de Artifact Registry existe y crearlo si no
-  # Este paso usa la imagen de Cloud SDK porque es una operación de gcloud CLI
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'sh'
     args:
@@ -29,8 +27,7 @@ steps:
     args: ['push', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPOSITORY_NAME/$_IMAGE_NAME:latest']
     id: 'push-docker-image'
  
-  # Paso 3: Desplegar la imagen en Google Cloud Run
-  # Este paso usa gcloud, no tu imagen custom
+  # Paso 3: Desplegar la imagen en Google Cloud Run (AHORA SÍ FUNCIONARÁ)
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
     args:
@@ -43,20 +40,16 @@ steps:
       - '--memory=2Gi'
       - '--no-allow-unauthenticated'
       - '--ingress=internal'
+      # Puedes añadir --timeout si el arranque tarda mucho (ej: --timeout=60s)
     id: 'deploy-cloud-run'
  
   # Paso 4: Invocar el pipeline de Vertex AI utilizando TU PROPIA IMAGEN Docker
-  # ESTE ES EL CAMBIO MÁS IMPORTANTE Y LA CLAVE PARA EL ÉXITO.
-  - name: '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPOSITORY_NAME/$_IMAGE_NAME:latest' # <-- ¡Aquí se usa TU imagen construida!
-    entrypoint: 'python3' # Asume que python3 está disponible en tu imagen base (python:3.11-slim-bookworm)
+  # Aquí ANULAMOS el CMD por defecto de Gunicorn para ejecutar tu script Python.
+  - name: '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPOSITORY_NAME/$_IMAGE_NAME:latest'
+    entrypoint: 'python3' # El entrypoint para ejecutar el script
     args:
-      - '-c'
-      - |
-        # No se necesitan comandos gcloud config set aquí si aiplatform.init se encarga de la autenticación
-        # Las credenciales de la cuenta de servicio de Cloud Build se propagan automáticamente.
-        echo "Ejecutando el script del pipeline desde la imagen personalizada..."
-        python3 pipeline/train_pipeline.py # Ejecuta directamente el script
-    id: 'run-vertex-pipeline' # Agregamos un ID para claridad
+      - 'pipeline/train_pipeline.py' # Ejecuta directamente el script
+    id: 'run-vertex-pipeline'
  
 substitutions:
   _PROJECT_ID: 'bdb-gcp-qa-cds-idt'
